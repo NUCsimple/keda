@@ -450,6 +450,8 @@ func buildScaler(triggerType string, config *scalers.ScalerConfig) (scalers.Scal
 		return scalers.NewCPUMemoryScaler(corev1.ResourceMemory, config)
 	case "metrics-api":
 		return scalers.NewMetricsAPIScaler(config)
+	case "mongo":
+		return scalers.NewMongoScaler(config)
 	case "mysql":
 		return scalers.NewMySQLScaler(config)
 	case "postgresql":
