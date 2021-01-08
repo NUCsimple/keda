@@ -6,44 +6,50 @@ import (
 	"go.mongodb.org/mongo-driver/mongo"
 )
 
-var testMongoResolvedEnv = map[string]string{
-	"Mongo_CONN_STR": "test_conn_str",
-	"Mongo_PASSWORD": "test",
+var testMongoDBResolvedEnv = map[string]string{
+	"MongoDB_CONN_STR": "test_conn_str",
+	"MongoDB_PASSWORD": "test",
 }
 
-type parseMongoMetadataTestData struct {
+type parseMongoDBMetadataTestData struct {
 	metadata    map[string]string
 	resolvedEnv map[string]string
 	raisesError bool
 }
 
-type mongoMetricIdentifier struct {
-	metadataTestData *parseMongoMetadataTestData
+type mongoDBMetricIdentifier struct {
+	metadataTestData *parseMongoDBMetadataTestData
 	name             string
 }
 
-var testMONGOMetadata = []parseMongoMetadataTestData{
+var testMONGODBMetadata = []parseMongoDBMetadataTestData{
 	// No metadata
 	{
 		metadata:    map[string]string{},
-		resolvedEnv: testMongoResolvedEnv,
+		resolvedEnv: testMongoDBResolvedEnv,
 		raisesError: true,
 	},
 	// connectionStringFromEnv
 	{
 		metadata:    map[string]string{"query": `{"name":"John"}`, "collection": "demo", "queryValue": "12", "connectionStringFromEnv": "Mongo_CONN_STR", "dbName": "test"},
-		resolvedEnv: testMongoResolvedEnv,
+		resolvedEnv: testMongoDBResolvedEnv,
+		raisesError: false,
+	},
+	// with metric name
+	{
+		metadata:    map[string]string{"query": `{"name":"John"}`, "metricName": "hpa", "collection": "demo", "queryValue": "12", "connectionStringFromEnv": "Mongo_CONN_STR", "dbName": "test"},
+		resolvedEnv: testMongoDBResolvedEnv,
 		raisesError: false,
 	},
 }
 
-var mongoMetricIdentifiers = []mongoMetricIdentifier{
-	{metadataTestData: &testMONGOMetadata[1], name: "mongo-test_conn_str"},
+var mongoDBMetricIdentifiers = []mongoDBMetricIdentifier{
+	{metadataTestData: &testMONGODBMetadata[2], name: "mongodb-hpa"},
 }
 
 func TestParseMongoMetadata(t *testing.T) {
-	for _, testData := range testMONGOMetadata {
-		_, _, err := parseMongoMetadata(&ScalerConfig{TriggerMetadata: testData.metadata})
+	for _, testData := range testMONGODBMetadata {
+		_, _, err := parseMongoDBMetadata(&ScalerConfig{TriggerMetadata: testData.metadata})
 		if err != nil && !testData.raisesError {
 			t.Error("Expected success but got error:", err)
 		}
@@ -54,12 +60,12 @@ func TestParseMongoMetadata(t *testing.T) {
 }
 
 func TestMongoGetMetricSpecForScaling(t *testing.T) {
-	for _, testData := range mongoMetricIdentifiers {
-		meta, _, err := parseMongoMetadata(&ScalerConfig{ResolvedEnv: testData.metadataTestData.resolvedEnv, TriggerMetadata: testData.metadataTestData.metadata})
+	for _, testData := range mongoDBMetricIdentifiers {
+		meta, _, err := parseMongoDBMetadata(&ScalerConfig{ResolvedEnv: testData.metadataTestData.resolvedEnv, TriggerMetadata: testData.metadataTestData.metadata})
 		if err != nil {
 			t.Fatal("Could not parse metadata:", err)
 		}
-		mockMongoScaler := mongoScaler{meta, &mongo.Client{}}
+		mockMongoScaler := mongoDBScaler{meta, &mongo.Client{}}
 
 		metricSpec := mockMongoScaler.GetMetricSpecForScaling()
 		metricName := metricSpec[0].External.Metric.Name
